@@ -3332,7 +3332,7 @@
         <span>🔒 保密级别: <span class="footer-highlight">小白熊官方高管驾驶舱 · 严禁外传</span></span>
       </div>
       <div class="footer-right">
-        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-03 17:00:02</span></span>
+        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-03 17:12:35</span></span>
         <span>|</span>
         <span>小白熊运营决策系统</span>
       </div>
@@ -5093,6 +5093,20 @@
     // 各渠道每日反馈目标（由「反馈标准」sheet 计算注入，板块一动态目标）
     const channelTargets = {"tmall": 18, "jd": 16, "dy": 20, "pdd": 20};
 
+    // 按日目标快照（历史日期冻结，仅当日随标准更新）：{YYYY-MM-DD: {渠道key: 目标}}
+    const dateChannelTargets = {"2026-09-01": {"tmall": 18, "jd": 16, "dy": 20, "pdd": 20}, "2026-09-02": {"tmall": 18, "jd": 16, "dy": 20, "pdd": 20}, "2026-09-03": {"tmall": 18, "jd": 16, "dy": 20, "pdd": 20}};
+
+    // 法定节假日字典 (2026年常见公休节假日清单) —— 全局，供窗口目标按工作日累加
+    const HOLIDAYS = new Set([
+      '2026-01-01', '2026-01-02', '2026-01-03',
+      '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20', '2026-02-21', '2026-02-22',
+      '2026-04-04', '2026-04-05', '2026-04-06',
+      '2026-05-01', '2026-05-02', '2026-05-03', '2026-05-04', '2026-05-05',
+      '2026-06-19', '2026-06-20', '2026-06-21',
+      '2026-09-25', '2026-09-26', '2026-09-27',
+      '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07'
+    ]);
+
 
 
     let currentChannel = 'tmall';
@@ -5250,16 +5264,8 @@
         let cur = new Date(sClamp.split('-')[0], parseInt(sClamp.split('-')[1])-1, sClamp.split('-')[2]);
         const end = new Date(eClamp.split('-')[0], parseInt(eClamp.split('-')[1])-1, eClamp.split('-')[2]);
         
-        // 法定节假日字典 (2026年常见公休节假日清单)
-        const holidays = new Set([
-          '2026-01-01', '2026-01-02', '2026-01-03', // 元旦
-          '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20', '2026-02-21', '2026-02-22', // 春节
-          '2026-04-04', '2026-04-05', '2026-04-06', // 清明
-          '2026-05-01', '2026-05-02', '2026-05-03', '2026-05-04', '2026-05-05', // 劳动节
-          '2026-06-19', '2026-06-20', '2026-06-21', // 端午
-          '2026-09-25', '2026-09-26', '2026-09-27', // 中秋
-          '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05', '2026-10-06', '2026-10-07'  // 国庆
-        ]);
+        // 法定节假日字典（全局 HOLIDAYS，见文件顶部）
+        const holidays = HOLIDAYS;
 
         while (cur <= end) {
           const dayOfWeek = cur.getDay(); // 0 = 周日, 6 = 周六
@@ -5314,8 +5320,27 @@
     }
 
     function refreshSection1(records, dayCount = 1) {
-      // 4大渠道目标由「反馈标准」动态计算注入（channelTargets），缺省回退 20
+      // 4大渠道目标由「反馈标准」动态计算注入（channelTargets），按日快照 dateChannelTargets 累加，缺省回退 20
       const ct = (typeof channelTargets !== 'undefined') ? channelTargets : {};
+      const dct = (typeof dateChannelTargets !== 'undefined') ? dateChannelTargets : {};
+      const hol = (typeof HOLIDAYS !== 'undefined') ? HOLIDAYS : new Set();
+      const sWin = document.getElementById('date-start')?.value || '';
+      const eWin = document.getElementById('date-end')?.value || '';
+      // 窗口目标 = 累加窗口内每个工作日的当日目标（历史日期冻结）；缺省回退 dailyTarget*dayCount
+      function windowTarget(key) {
+        if (!sWin || !eWin) return (ct[key] || 20) * dayCount;
+        let total = 0;
+        const cur = new Date(sWin.split('-')[0], parseInt(sWin.split('-')[1]) - 1, parseInt(sWin.split('-')[2]));
+        const end = new Date(eWin.split('-')[0], parseInt(eWin.split('-')[1]) - 1, parseInt(eWin.split('-')[2]));
+        while (cur <= end) {
+          const iso = formatDate(cur);
+          if (cur.getDay() !== 0 && cur.getDay() !== 6 && !hol.has(iso)) {
+            total += (dct[iso] && dct[iso][key]) || (ct[key] || 20);
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+        return total;
+      }
       const channels = [
         { key: 'tmall', name: '天猫', dailyTarget: ct.tmall || 20 },
         { key: 'jd', name: '京东', dailyTarget: ct.jd || 20 },
@@ -5327,7 +5352,7 @@
       let rowsHtml = '';
 
       channels.forEach(ch => {
-        const target = ch.dailyTarget * dayCount;
+        const target = windowTarget(ch.key);
         const count = records.filter(r => r.channel === ch.key).length;
         const rate = target > 0 ? (count / target * 100) : 0;
         totalTarget += target;
