@@ -1232,11 +1232,11 @@
       <!-- 下半区：两卡片并排 -->
       <div class="bottom-row-grid">
         
-        <!-- 四、重点系列明细（按条数降序） -->
+        <!-- 四、系列/型号明细（按条数降序） -->
         <div class="dashboard-card">
           <div class="card-header">
             <div class="card-header-left">
-              <span class="card-title">四、☑️ 重点系列明细（按条数降序）</span>
+              <span class="card-title">四、☑️ 系列/型号明细（按条数降序）</span>
             </div>
             <div class="legend-row">
               <span class="legend-item"><span class="legend-box" style="background-color: var(--c-tmall);"></span>天猫</span>
@@ -1250,7 +1250,7 @@
           <table class="series-table">
             <thead>
               <tr>
-                <th>重点系列名称</th>
+                <th>系列 / 型号</th>
                 <th style="text-align: center;">4渠道条数对比</th>
                 <th style="text-align: center;">总计</th>
                 <th style="text-align: right;">总达标率</th>
@@ -3332,7 +3332,7 @@
         <span>🔒 保密级别: <span class="footer-highlight">小白熊官方高管驾驶舱 · 严禁外传</span></span>
       </div>
       <div class="footer-right">
-        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-03 17:12:35</span></span>
+        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-03 18:15:35</span></span>
         <span>|</span>
         <span>小白熊运营决策系统</span>
       </div>
@@ -4653,7 +4653,7 @@
   },
   {
     "channel": "pdd",
-    "series": "-",
+    "series": "其他",
     "model": "8631",
     "type": "滞留问题未及时跟进",
     "content": "无下文，需及时跟进",
@@ -4665,7 +4665,7 @@
   },
   {
     "channel": "pdd",
-    "series": "-",
+    "series": "其他",
     "model": "8631",
     "type": "话术错误",
     "content": "顾客反馈商品问题，未给出答复",
@@ -5609,15 +5609,27 @@
     }
 
     function refreshSection4(records, dayCount = 1) {
-      // 每个重点系列每日目标：4个渠道 × 每个渠道2条 = 8条
+      // 每个系列每日目标：4个渠道 × 每个渠道2条 = 8条
       const threshold = 8 * dayCount;
-      
-      // 1. 严格按【系列】聚合分组，统计所选日期区间内 4 渠道的真实条数（满足日期&系列&问题类型三非空）
-      const seriesStatList = targetSeriesList.map(seriesName => {
-        const cTmall = records.filter(r => r.channel === 'tmall' && r.series === seriesName).length;
-        const cJd = records.filter(r => r.channel === 'jd' && r.series === seriesName).length;
-        const cDy = records.filter(r => r.channel === 'dy' && r.series === seriesName).length;
-        const cPdd = records.filter(r => r.channel === 'pdd' && r.series === seriesName).length;
+
+      // 系列回退显示：系列空（已显示「其他」）→ 回退产品型号；板块四口径
+      const fb = r => (r.series && r.series !== '其他' && r.series !== '-')
+        ? r.series : ((r.model && r.model !== '-') ? r.model : '其他');
+
+      // 1. 统计对象 = 重点系列 + 窗口内实际出现的系列/型号（含系列空回退型号，如 8631）
+      const extraSeries = [];
+      const seen = new Set(targetSeriesList);
+      records.forEach(r => {
+        const name = fb(r);
+        if (!seen.has(name)) { seen.add(name); extraSeries.push(name); }
+      });
+      const allSeries = targetSeriesList.concat(extraSeries);
+
+      const seriesStatList = allSeries.map(seriesName => {
+        const cTmall = records.filter(r => r.channel === 'tmall' && fb(r) === seriesName).length;
+        const cJd = records.filter(r => r.channel === 'jd' && fb(r) === seriesName).length;
+        const cDy = records.filter(r => r.channel === 'dy' && fb(r) === seriesName).length;
+        const cPdd = records.filter(r => r.channel === 'pdd' && fb(r) === seriesName).length;
         const total = cTmall + cJd + cDy + cPdd;
         const isOk = total >= threshold && threshold > 0;
         const rateVal = threshold > 0 ? (total / threshold) * 100 : 0;
@@ -5665,7 +5677,7 @@
           <table class="series-table">
             <thead>
               <tr>
-                <th>重点系列名称</th>
+                <th>系列 / 型号</th>
                 <th style="text-align: center;">4渠道条数对比</th>
                 <th style="text-align: center;">总计</th>
                 <th style="text-align: right;">总达标率</th>
