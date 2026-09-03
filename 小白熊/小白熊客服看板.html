@@ -3332,7 +3332,7 @@
         <span>🔒 保密级别: <span class="footer-highlight">小白熊官方高管驾驶舱 · 严禁外传</span></span>
       </div>
       <div class="footer-right">
-        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-03 14:16:49</span></span>
+        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-03 17:00:02</span></span>
         <span>|</span>
         <span>小白熊运营决策系统</span>
       </div>
@@ -5090,6 +5090,9 @@
     // 重点系列考核字典
     const targetSeriesList = ["3061", "八爪鱼R系列", "恒温杯H系列", "曼哈顿球", "三合一UT系列", "速冷L系列", "吸奶器Z系列", "星空A系列", "星钻S系列", "咬咬"];
 
+    // 各渠道每日反馈目标（由「反馈标准」sheet 计算注入，板块一动态目标）
+    const channelTargets = {"tmall": 18, "jd": 16, "dy": 20, "pdd": 20};
+
 
 
     let currentChannel = 'tmall';
@@ -5290,7 +5293,8 @@
 
       console.log(`Step 2 [日期+问题类型过滤]: 符合区间有效记录数 = ${validRecords.length} 条`);
       console.log(`Step 3 [四渠道明细分布]: 天猫=${validRecords.filter(r=>r.channel==='tmall').length}条, 京东=${validRecords.filter(r=>r.channel==='jd').length}条, 抖音=${validRecords.filter(r=>r.channel==='dy').length}条, 拼多多=${validRecords.filter(r=>r.channel==='pdd').length}条`);
-      console.log(`Step 4 [各渠道考核目标]: 天猫=${20*workdayCount}条, 京东=${14*workdayCount}条, 抖音=${20*workdayCount}条, 拼多多=${20*workdayCount}条, 汇总=${74*workdayCount}条`);
+      const _ct = (typeof channelTargets !== 'undefined') ? channelTargets : {};
+      console.log(`Step 4 [各渠道考核目标]: 天猫=${(_ct.tmall||20)*workdayCount}条, 京东=${(_ct.jd||20)*workdayCount}条, 抖音=${(_ct.dy||20)*workdayCount}条, 拼多多=${(_ct.pdd||20)*workdayCount}条, 汇总=${((_ct.tmall||20)+(_ct.jd||20)+(_ct.dy||20)+(_ct.pdd||20))*workdayCount}条`);
       console.groupEnd();
 
       // 1. 刷新板块一（渠道总览与达标率，传入动态有效工作日天数）
@@ -5310,12 +5314,13 @@
     }
 
     function refreshSection1(records, dayCount = 1) {
-      // 4大渠道固定目标均为20条（合计80条）
+      // 4大渠道目标由「反馈标准」动态计算注入（channelTargets），缺省回退 20
+      const ct = (typeof channelTargets !== 'undefined') ? channelTargets : {};
       const channels = [
-        { key: 'tmall', name: '天猫', dailyTarget: 20 },
-        { key: 'jd', name: '京东', dailyTarget: 20 },
-        { key: 'dy', name: '抖音', dailyTarget: 20 },
-        { key: 'pdd', name: '拼多多', dailyTarget: 20 }
+        { key: 'tmall', name: '天猫', dailyTarget: ct.tmall || 20 },
+        { key: 'jd', name: '京东', dailyTarget: ct.jd || 20 },
+        { key: 'dy', name: '抖音', dailyTarget: ct.dy || 20 },
+        { key: 'pdd', name: '拼多多', dailyTarget: ct.pdd || 20 }
       ];
 
       let totalTarget = 0, totalCount = 0;
