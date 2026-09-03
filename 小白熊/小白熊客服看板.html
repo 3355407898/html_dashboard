@@ -5110,7 +5110,7 @@
 
       if (!isShow) {
         // 动态提取当前渠道在当前日期筛选范围内的唯一可选值
-        const list = window.currentFilteredPool ? window.currentFilteredPool.filter(r => r.channel === currentChannel) : (channelData[currentChannel] || []);
+        const list = (window.currentFilteredPool || allChannelRecords).filter(r => r.channel === currentChannel);
         const uniqueValues = ['全部', ...new Set(list.map(item => item[field]))];
         
         let menuHtml = '';
@@ -5285,6 +5285,8 @@
         if (eClamp && r.date > eClamp) return false;
         return true;
       });
+      // 供板块五筛选下拉取值（当前日期窗口过滤后的记录池）
+      window.currentFilteredPool = validRecords;
 
       console.log(`Step 2 [日期+问题类型过滤]: 符合区间有效记录数 = ${validRecords.length} 条`);
       console.log(`Step 3 [四渠道明细分布]: 天猫=${validRecords.filter(r=>r.channel==='tmall').length}条, 京东=${validRecords.filter(r=>r.channel==='jd').length}条, 抖音=${validRecords.filter(r=>r.channel==='dy').length}条, 拼多多=${validRecords.filter(r=>r.channel==='pdd').length}条`);
