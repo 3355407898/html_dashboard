@@ -1015,6 +1015,14 @@
             <span class="gdf-sep">选择单日</span>
             <input type="date" id="date-day" class="gdf-date-input" min="2026-08-31" onchange="onDayDateChange()">
           </div>
+          <div class="gdf-custom-row" id="gdf-week-row" style="display: none;">
+            <span class="gdf-sep">选择周</span>
+            <select id="gdf-week-select" class="gdf-date-input" onchange="onWeekSelectChange()"></select>
+          </div>
+          <div class="gdf-custom-row" id="gdf-month-row" style="display: none;">
+            <span class="gdf-sep">选择月</span>
+            <select id="gdf-month-select" class="gdf-date-input" onchange="onMonthSelectChange()"></select>
+          </div>
           <div class="gdf-footer">
             <span class="gdf-clock" id="gdf-clock">⏱️ --:--:--</span>
             <span class="gdf-note">跨天自动校准</span>
@@ -3365,7 +3373,7 @@
         <span>🔒 保密级别: <span class="footer-highlight">小白熊官方高管驾驶舱 · 严禁外传</span></span>
       </div>
       <div class="footer-right">
-        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-07 10:36:38</span></span>
+        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-07 10:48:53</span></span>
         <span>|</span>
         <span>小白熊运营决策系统</span>
       </div>
@@ -7337,8 +7345,12 @@
       if (btn) btn.classList.add('active');
       const customRow = document.getElementById('gdf-custom-row');
       const dayRow = document.getElementById('gdf-day-row');
+      const weekRow = document.getElementById('gdf-week-row');
+      const monthRow = document.getElementById('gdf-month-row');
       if (customRow) customRow.style.display = (type === 'custom') ? 'flex' : 'none';
       if (dayRow) dayRow.style.display = (type === 'day') ? 'flex' : 'none';
+      if (weekRow) weekRow.style.display = (type === 'week') ? 'flex' : 'none';
+      if (monthRow) monthRow.style.display = (type === 'month') ? 'flex' : 'none';
 
       const T = new Date(); // 时间均以电脑本地日期为锚点
       let s, e;
@@ -7364,14 +7376,32 @@
         }
         s = e = d;
       } else if (type === 'week') {
-        const dY = new Date(T); dY.setDate(T.getDate() - 1);        // 昨日 = 最新数据日
-        const dow = dY.getDay() === 0 ? 7 : dY.getDay();            // 以昨日所在周定位周一
-        const dS = new Date(dY); dS.setDate(dY.getDate() - (dow - 1));
-        s = formatDate(dS); e = formatDate(dY);
+        // 周：从周选择下拉取值（含日期区间），为空则默认最近一周
+        populateWeekOptions();
+        const sel = document.getElementById('gdf-week-select');
+        let v = sel?.value || '';
+        if (!v) {
+          const dY = new Date(T); dY.setDate(T.getDate() - 1);
+          const dow = dY.getDay() === 0 ? 7 : dY.getDay();
+          const dS = new Date(dY); dS.setDate(dY.getDate() - (dow - 1));
+          v = formatDate(dS) + '~' + formatDate(dY);
+          if (sel) sel.value = v;
+        }
+        const parts = v.split('~');
+        s = parts[0] || ''; e = parts[1] || '';
       } else if (type === 'month') {
-        const dY = new Date(T); dY.setDate(T.getDate() - 1);        // 昨日 = 最新数据日
-        const dS = new Date(dY.getFullYear(), dY.getMonth(), 1);   // 昨日所在月的1号
-        s = formatDate(dS); e = formatDate(dY);
+        // 月：从月选择下拉取值（含日期区间），为空则默认最近一月
+        populateMonthOptions();
+        const sel = document.getElementById('gdf-month-select');
+        let v = sel?.value || '';
+        if (!v) {
+          const dY = new Date(T); dY.setDate(T.getDate() - 1);
+          const dS = new Date(dY.getFullYear(), dY.getMonth(), 1);
+          v = formatDate(dS) + '~' + formatDate(dY);
+          if (sel) sel.value = v;
+        }
+        const parts = v.split('~');
+        s = parts[0] || ''; e = parts[1] || '';
       } else {
         const startInput = document.getElementById('date-start');
         const endInput = document.getElementById('date-end');
@@ -7401,6 +7431,95 @@
       if (!d) return;
       updateRangeLabel(d, d);
       onCustomDateChange(d, d);
+    }
+
+    // 周号（ISO 周，周一为一周起点）
+    function weekNumber(d) {
+      const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const dayNum = date.getUTCDay() || 7;
+      date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+      return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    }
+
+    // 填充周选择下拉：数据下限 2026-08-31 所在周起，至最近一周，最近在前
+    function populateWeekOptions() {
+      const sel = document.getElementById('gdf-week-select');
+      if (!sel || sel.options.length > 0) return;
+      const T = new Date();
+      const dY = new Date(T); dY.setDate(T.getDate() - 1);          // 昨日 = 最新数据日
+      const dow = dY.getDay() === 0 ? 7 : dY.getDay();
+      const endMon = new Date(dY); endMon.setDate(dY.getDate() - (dow - 1)); // 最近一周周一
+      const minD = new Date('2026-08-31');
+      const sdow = minD.getDay() === 0 ? 7 : minD.getDay();
+      const startMon = new Date(minD); startMon.setDate(minD.getDate() - (sdow - 1)); // 数据起点所在周周一
+      const opts = [];
+      const cur = new Date(startMon);
+      while (cur <= endMon) {
+        const wEnd = new Date(cur); wEnd.setDate(cur.getDate() + 6);
+        opts.push({ value: formatDate(cur) + '~' + formatDate(wEnd),
+                    label: `第${weekNumber(cur)}周 ${formatDate(cur)}~${formatDate(wEnd)}` });
+        cur.setDate(cur.getDate() + 7);
+      }
+      opts.reverse();
+      opts.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.value; opt.textContent = o.label;
+        sel.appendChild(opt);
+      });
+      if (sel.options.length > 0) sel.selectedIndex = 0;
+    }
+
+    // 填充月选择下拉：数据下限所在月至最近一月，最近在前
+    function populateMonthOptions() {
+      const sel = document.getElementById('gdf-month-select');
+      if (!sel || sel.options.length > 0) return;
+      const T = new Date();
+      const dY = new Date(T); dY.setDate(T.getDate() - 1);          // 昨日 = 最新数据日
+      const endY = dY.getFullYear(), endM = dY.getMonth();
+      const minD = new Date('2026-08-31');
+      const opts = [];
+      let y = minD.getFullYear(), m = minD.getMonth();
+      while (y < endY || (y === endY && m <= endM)) {
+        const mStart = new Date(y, m, 1);
+        const mEnd = new Date(y, m + 1, 0);
+        opts.push({ value: formatDate(mStart) + '~' + formatDate(mEnd),
+                    label: `${m + 1}月 ${formatDate(mStart)}~${formatDate(mEnd)}` });
+        m++; if (m > 11) { m = 0; y++; }
+      }
+      opts.reverse();
+      opts.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.value; opt.textContent = o.label;
+        sel.appendChild(opt);
+      });
+      if (sel.options.length > 0) sel.selectedIndex = 0;
+    }
+
+    function onWeekSelectChange() {
+      const sel = document.getElementById('gdf-week-select');
+      const v = sel?.value || '';
+      if (!v) return;
+      const parts = v.split('~');
+      gdfCurrentType = 'week';
+      document.querySelectorAll('.gdf-capsule').forEach(b => b.classList.remove('active'));
+      const btn = document.querySelector('.gdf-capsule[data-type="week"]');
+      if (btn) btn.classList.add('active');
+      updateRangeLabel(parts[0], parts[1]);
+      onCustomDateChange(parts[0], parts[1]);
+    }
+
+    function onMonthSelectChange() {
+      const sel = document.getElementById('gdf-month-select');
+      const v = sel?.value || '';
+      if (!v) return;
+      const parts = v.split('~');
+      gdfCurrentType = 'month';
+      document.querySelectorAll('.gdf-capsule').forEach(b => b.classList.remove('active'));
+      const btn = document.querySelector('.gdf-capsule[data-type="month"]');
+      if (btn) btn.classList.add('active');
+      updateRangeLabel(parts[0], parts[1]);
+      onCustomDateChange(parts[0], parts[1]);
     }
 
     function updateRangeLabel(s, e) {
