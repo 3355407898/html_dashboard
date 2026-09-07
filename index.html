@@ -3373,7 +3373,7 @@
         <span>🔒 保密级别: <span class="footer-highlight">小白熊官方高管驾驶舱 · 严禁外传</span></span>
       </div>
       <div class="footer-right">
-        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-07 15:12:41</span></span>
+        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-07 15:39:23</span></span>
         <span>|</span>
         <span>小白熊运营决策系统</span>
       </div>
@@ -6892,6 +6892,13 @@
         const si = document.getElementById('date-start'), ei = document.getElementById('date-end');
         if (si && s) si.value = sClamp;
         if (ei && e) ei.value = eClamp;
+      }
+      // 单日模式修复（2026-09-07）：同步 date-start/date-end 与所选单日一致，
+      // 避免 windowTarget 从陈旧的 date-start/date-end 取窗口导致反馈目标=0
+      if (gdfCurrentType === 'day' && sClamp === eClamp && sClamp) {
+        const si = document.getElementById('date-start'), ei = document.getElementById('date-end');
+        if (si) si.value = sClamp;
+        if (ei) ei.value = eClamp;
       }
       updateRangeLabel(sClamp, eClamp);
       
