@@ -354,11 +354,15 @@
     /* 二、全渠道问题类型分布 */
     .dist-container {
       display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
       height: 100%;
       min-width: 0;
       overflow: hidden;
+    }
+
+    .dist-container > div {
+      min-width: 0;
     }
 
     .dist-sub-title {
@@ -378,9 +382,9 @@
       border: 1px solid #eef2f6;
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: flex-start;
       box-sizing: border-box;
-      height: calc(100% - 20px);
+      height: calc(100% - 22px);
     }
 
     .stacked-bar-main {
@@ -422,6 +426,25 @@
       display: flex;
       flex-direction: column;
       gap: 3px;
+      max-height: 123px;
+      overflow-y: auto;
+      padding-right: 5px;
+      padding-bottom: 2px;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+    }
+
+    .type-stat-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .type-stat-list::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 2px;
+    }
+
+    .type-stat-list::-webkit-scrollbar-track {
+      background: transparent;
     }
 
     .type-stat-row {
@@ -456,15 +479,15 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      gap: 3.5px;
+      gap: 6px;
       font-size: 10px;
-      height: calc(100% - 20px);
+      height: calc(100% - 22px);
       box-sizing: border-box;
     }
 
     .channel-stack-item {
       background: #f8fafc;
-      padding: 3px 6px;
+      padding: 4px 6px;
       border-radius: 5px;
       border: 1px solid #eef2f6;
       display: flex;
@@ -508,6 +531,9 @@
       color: #64748b;
       line-height: 1;
       padding-left: 34px; /* 与左侧渠道名对齐下方 */
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     /* 三、监控预警与高频痛点 */
@@ -688,6 +714,8 @@
     .micro-slot.pdd .micro-slot-bar { background-color: #ff6a00; }
 
     .micro-slot.zero .micro-slot-val { color: #94a3b8; font-weight: 500; }
+    .micro-slot.exempt .micro-slot-val { color: #8b5cf6; font-weight: 500; }
+    .micro-slot.exempt .micro-slot-track { background: #f5f3ff; }
     .micro-slot.zero .micro-slot-bar { background-color: #cbd5e1; height: 1.5px !important; }
 
     /* 五、渠道反馈明细下钻与客服处理追踪 */
@@ -3332,7 +3360,7 @@
         <span>🔒 保密级别: <span class="footer-highlight">小白熊官方高管驾驶舱 · 严禁外传</span></span>
       </div>
       <div class="footer-right">
-        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-04 15:08:30</span></span>
+        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-07 09:13:45</span></span>
         <span>|</span>
         <span>小白熊运营决策系统</span>
       </div>
@@ -5971,6 +5999,7 @@
 
     // 按日目标快照（历史日期冻结，仅当日随标准更新）：{YYYY-MM-DD: {渠道key: 目标}}
     const dateChannelTargets = {"2026-09-02": {"tmall": 18, "jd": 16, "dy": 20, "pdd": 20}, "2026-09-03": {"tmall": 18, "jd": 16, "dy": 20, "pdd": 20}, "2026-09-04": {"tmall": 18, "jd": 16, "dy": 20, "pdd": 20}};
+    const seriesExemption = {"3061": {"jd": true}, "曼哈顿球": {"tmall": true, "jd": true}}; // 渠道×系列免反馈映射（管道按底表「反馈标准」动态注入；免反馈组合不计缺卡与目标）
 
     // 法定节假日字典 (2026年常见公休节假日清单) —— 全局，供窗口目标按工作日累加
     const HOLIDAYS = new Set([
@@ -6294,35 +6323,54 @@
       const badge = document.getElementById('kpi-total-records-badge');
       if (badge) badge.innerText = `共 ${records.length} 条记录`;
 
-      // 统计5大真实问题类型
+      // 统计问题类型（V2.1：全类型完整展示，不再合并「其它」）
       const typeCounts = {};
       records.forEach(r => {
         typeCounts[r.type] = (typeCounts[r.type] || 0) + 1;
       });
-      // Sort by count desc, take top 5
       const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
-      const top5Types = sortedTypes.slice(0, 5);
-      const otherCount = sortedTypes.slice(5).reduce((sum, t) => sum + t[1], 0);
-      if (otherCount > 0) top5Types.push(['其它', otherCount]);
+      const allTypes = sortedTypes;
 
       const total = records.length || 1;
-      const colors = ['var(--t-func)', 'var(--t-timeout)', 'var(--t-act)', 'var(--t-ai)', 'var(--t-after)', '#8b5cf6'];
+      const colors = ['var(--t-func)', 'var(--t-timeout)', 'var(--t-act)', 'var(--t-ai)', 'var(--t-after)',
+        '#8b5cf6', '#0ea5e9', '#f59e0b', '#10b981', '#f43f5e', '#6366f1', '#14b8a6', '#a855f7', '#84cc16', '#fb7185', '#64748b', '#0f766e'];
 
-      // 分渠道拆分
-      const tmallCount = records.filter(r => r.channel === 'tmall').length;
-      const jdCount = records.filter(r => r.channel === 'jd').length;
-      const dyCount = records.filter(r => r.channel === 'dy').length;
-      const pddCount = records.filter(r => r.channel === 'pdd').length;
+      // V2.1 分渠道拆分：每渠道独立类型占比（同一类型全局同色，与左侧图例一致）
+      const typeColorMap = {};
+      allTypes.forEach((t, i) => { typeColorMap[t[0]] = colors[i % colors.length]; });
+      const CH_LIST = [
+        { key: 'tmall', name: '天猫' },
+        { key: 'jd', name: '京东' },
+        { key: 'dy', name: '抖音' },
+        { key: 'pdd', name: '拼多多' }
+      ];
+      const chData = {};
+      CH_LIST.forEach(ch => {
+        const chRecs = records.filter(r => r.channel === ch.key);
+        const cnt = {};
+        chRecs.forEach(r => { cnt[r.type] = (cnt[r.type] || 0) + 1; });
+        const srt = Object.entries(cnt).sort((a, b) => b[1] - a[1]);
+        const chTotal = chRecs.length || 1;
+        const bar = chRecs.length
+          ? srt.map(t => `<div style="width: ${(t[1] / chTotal * 100).toFixed(2)}%; background-color: ${typeColorMap[t[0]]};" title="${ch.name}·${t[0]}: ${t[1]}条 ${(t[1] / chTotal * 100).toFixed(1)}%"></div>`).join('')
+          : `<div style="width: 100%; background-color: #e2e8f0;"></div>`;
+        const tags = srt.slice(0, 5).map(t => `${t[0]}:${(t[1] / chTotal * 100).toFixed(1)}%`).join(' ');
+        const full = srt.length
+          ? srt.map(t => `${t[0]}  ${t[1]}条  ${(t[1] / chTotal * 100).toFixed(1)}%`).join('\n')
+          : '所选时段无提报记录';
+        chData[ch.key] = { name: ch.name, count: chRecs.length, bar, tags, full };
+      });
 
       // Build stacked bar HTML
       let stackedHtml = '';
       let typeRowsHtml = '';
-      top5Types.forEach((t, idx) => {
+      allTypes.forEach((t, idx) => {
+        const color = colors[idx % colors.length];
         const pct = (t[1] / total * 100).toFixed(1);
-        stackedHtml += `<div style="width: ${pct}%; background-color: ${colors[idx]};" title="${t[0]}: ${pct}%"></div>`;
+        stackedHtml += `<div style="width: ${pct}%; background-color: ${color};" title="${t[0]}: ${pct}%"></div>`;
         typeRowsHtml += `
                 <div class="type-stat-row" title="${t[0]}">
-                  <span class="type-label-group"><span class="color-dot" style="background-color: ${colors[idx]};"></span><span class="type-name-text">${t[0]}</span></span>
+                  <span class="type-label-group"><span class="color-dot" style="background-color: ${color};"></span><span class="type-name-text">${t[0]}</span></span>
                   <span><strong>${t[1]}</strong></span>
                   <span style="color:#64748b;">${pct}%</span>
                 </div>`;
@@ -6335,7 +6383,7 @@
         <div class="dist-container">
           <!-- 左侧：全盘汇总 -->
           <div>
-            <div class="dist-sub-title"> 四渠道汇总</div>
+            <div class="dist-sub-title"> 四渠道汇总 · 共${allTypes.length}类（可滚动）</div>
             <div class="dist-left-block">
               <div class="stacked-bar-main">
                 ${stackedHtml}
@@ -6351,50 +6399,24 @@
             </div>
           </div>
 
-          <!-- 右侧：分渠道占比 -->
+          <!-- 右侧：分渠道占比（各渠道内部占比） -->
           <div>
-            <div class="dist-sub-title"> 渠道拆分占比</div>
+            <div class="dist-sub-title"> 渠道拆分占比（渠道内部）</div>
             <div class="channel-stack-wrap">
-              <div class="channel-stack-item">
+              ${CH_LIST.map(ch => {
+                const d = chData[ch.key];
+                return `
+              <div class="channel-stack-item" style="${d.count === 0 ? 'opacity: 0.7;' : ''}">
                 <div class="channel-stack-row-inline">
-                  <span class="channel-stack-name">天猫</span>
+                  <span class="channel-stack-name">${d.name}</span>
                   <div class="stacked-bar-sub">
-                    ${stackedHtml}
+                    ${d.bar}
                   </div>
-                  <span class="channel-stack-count">${tmallCount}条</span>
+                  <span class="channel-stack-count">${d.count}条</span>
                 </div>
-                <div class="channel-tags-text">${top5Types.map((t, i) => t[0] + ':' + (t[1] / total * 100).toFixed(1) + '%').join(' ')}</div>
-              </div>
-              <div class="channel-stack-item" style="${jdCount === 0 ? 'opacity: 0.7;' : ''}">
-                <div class="channel-stack-row-inline">
-                  <span class="channel-stack-name">京东</span>
-                  <div class="stacked-bar-sub">
-                    <div style="width: ${jdCount > 0 ? 100 : 0}%; background-color: var(--t-func);"></div>
-                  </div>
-                  <span class="channel-stack-count">${jdCount}条</span>
-                </div>
-                <div class="channel-tags-text" style="color: #94a3b8; font-style: italic;">${jdCount === 0 ? '缺卡 (所选时段未提报)' : '已提报监测'}</div>
-              </div>
-              <div class="channel-stack-item" style="${dyCount === 0 ? 'opacity: 0.7;' : ''}">
-                <div class="channel-stack-row-inline">
-                  <span class="channel-stack-name">抖音</span>
-                  <div class="stacked-bar-sub">
-                    <div style="width: ${dyCount > 0 ? 100 : 0}%; background-color: var(--t-func);"></div>
-                  </div>
-                  <span class="channel-stack-count">${dyCount}条</span>
-                </div>
-                <div class="channel-tags-text" style="color: #94a3b8; font-style: italic;">${dyCount === 0 ? '缺卡 (所选时段未提报)' : '已提报监测'}</div>
-              </div>
-              <div class="channel-stack-item">
-                <div class="channel-stack-row-inline">
-                  <span class="channel-stack-name">拼多多</span>
-                  <div class="stacked-bar-sub">
-                    <div style="width: ${pddCount > 0 ? 100 : 0}%; background-color: var(--t-func);"></div>
-                  </div>
-                  <span class="channel-stack-count">${pddCount}条</span>
-                </div>
-                <div class="channel-tags-text" style="color: #94a3b8; font-style: italic;">${pddCount === 0 ? '缺卡 (所选时段未提报)' : '已提报监测'}</div>
-              </div>
+                <div class="channel-tags-text" style="${d.count === 0 ? 'color: #94a3b8; font-style: italic;' : ''}" title="${d.count === 0 ? '所选时段该渠道未提报' : `${d.name} ${d.count}条 · 全部类型明细（渠道内部占比）:\n${d.full}`}">${d.count === 0 ? '缺卡 (所选时段未提报)' : d.tags}</div>
+              </div>`;
+              }).join('')}
             </div>
           </div>
         </div>
@@ -6410,13 +6432,18 @@
         { key: 'pdd', name: '拼多多' }
       ];
 
+      // V2.1 免反馈组合（底表「反馈标准」标注「基数太少暂不反馈」）不计缺卡/少反馈
+      const isExempt = (s, chKey) => !!(seriesExemption[s] && seriesExemption[s][chKey]);
+
       const warnList = [];
       channels.forEach(ch => {
         const chRecs = records.filter(r => r.channel === ch.key);
         const missSeries = [];
         const lowSeries = [];
+        let exemptCount = 0;
 
         targetSeriesList.forEach(s => {
+          if (isExempt(s, ch.key)) { exemptCount++; return; }
           const sCount = chRecs.filter(r => r.series === s).length;
           if (sCount === 0) {
             missSeries.push(s);
@@ -6425,7 +6452,11 @@
           }
         });
 
-        if (missSeries.length === 0 && lowSeries.length === 0) {
+        if (exemptCount === targetSeriesList.length) {
+          warnList.push(`<div class="warn-card" style="border-left-color: #8b5cf6; border-color: #ddd6fe; background: #f5f3ff;">
+            <strong style="color: #7e22ce;">${ch.name}:</strong> <span style="color: #7e22ce; font-weight: 600;">重点系列全部免反馈</span>
+          </div>`);
+        } else if (missSeries.length === 0 && lowSeries.length === 0) {
           warnList.push(`<div class="warn-card" style="border-left-color: var(--tag-success-text); border-color: #a7f3d0; background: #f0fdf4;">
             <strong style="color: #059669;">${ch.name}:</strong> <span style="color: #059669; font-weight: 600;">重点系列全部达标 (≥2条)</span>
           </div>`);
@@ -6437,6 +6468,10 @@
           if (lowSeries.length > 0) {
             if (warnText) warnText += '，';
             warnText += `<span style="color: #d97706;">${lowSeries.slice(0, 2).join('、')}少反馈(<2条)</span>`;
+          }
+          if (exemptCount > 0) {
+            if (warnText) warnText += '，';
+            warnText += `<span style="color: #8b5cf6;">${exemptCount}系列免反馈</span>`;
           }
           warnList.push(`<div class="warn-card">
             <strong>${ch.name}:</strong> ${warnText}
@@ -6485,8 +6520,8 @@
     }
 
     function refreshSection4(records, dayCount = 1) {
-      // 每个系列每日目标：4个渠道 × 每个渠道2条 = 8条
-      const threshold = 8 * dayCount;
+      // V2.1 每个系列每日目标：有效渠道数 × 每个渠道2条（免反馈渠道不计目标与总计）
+      const CH_KEYS = ['tmall', 'jd', 'dy', 'pdd'];
 
       // 系列回退显示：系列空（已显示「其他」）→ 回退产品型号；板块四口径
       const fb = r => (r.series && r.series !== '其他' && r.series !== '-')
@@ -6502,14 +6537,26 @@
       const allSeries = targetSeriesList.concat(extraSeries);
 
       const seriesStatList = allSeries.map(seriesName => {
-        const cTmall = records.filter(r => r.channel === 'tmall' && fb(r) === seriesName).length;
-        const cJd = records.filter(r => r.channel === 'jd' && fb(r) === seriesName).length;
-        const cDy = records.filter(r => r.channel === 'dy' && fb(r) === seriesName).length;
-        const cPdd = records.filter(r => r.channel === 'pdd' && fb(r) === seriesName).length;
-        const total = cTmall + cJd + cDy + cPdd;
+        const exemptCh = seriesExemption[seriesName] || {};
+        const counts = {};
+        let total = 0;
+        CH_KEYS.forEach(key => {
+          const c = records.filter(r => r.channel === key && fb(r) === seriesName).length;
+          if (exemptCh[key]) {
+            counts[key] = -1; // 免反馈渠道：显示「免」，不计目标与总计
+          } else {
+            counts[key] = c;
+            total += c;
+          }
+        });
+        const activeCh = CH_KEYS.filter(key => !exemptCh[key]).length;
+        const threshold = 2 * activeCh * dayCount;
         const isOk = total >= threshold && threshold > 0;
         const rateVal = threshold > 0 ? (total / threshold) * 100 : 0;
-        return { seriesName, cTmall, cJd, cDy, cPdd, total, isOk, rateVal };
+        return {
+          seriesName, cTmall: counts.tmall, cJd: counts.jd, cDy: counts.dy, cPdd: counts.pdd,
+          total, isOk, rateVal, threshold, exemptCount: CH_KEYS.length - activeCh
+        };
       });
 
       // 2. 严格按【总条数降序】实时重排序
@@ -6518,6 +6565,9 @@
       let rowsHtml = '';
       seriesStatList.forEach(item => {
         const renderSlot = (val, chClass) => {
+          if (val === -1) {
+            return `<div class="micro-slot exempt" title="底表标注免反馈"><span class="micro-slot-val">免</span><div class="micro-slot-track"></div></div>`;
+          }
           if (val > 0) {
             const h = Math.min(val * 1.5, 7);
             return `<div class="micro-slot ${chClass}"><span class="micro-slot-val">${val}</span><div class="micro-slot-track"><div class="micro-slot-bar" style="height: ${h}px;"></div></div></div>`;
@@ -6526,11 +6576,14 @@
         };
 
         const rateColor = item.rateVal >= 100 ? '#059669' : '#dc2626';
-        const rateText = threshold > 0 ? `${item.rateVal.toFixed(1)}%` : '-';
+        const rateText = item.exemptCount === 4
+          ? '<span style="color:#8b5cf6;">免</span>'
+          : (item.threshold > 0 ? `${item.rateVal.toFixed(1)}%` : '-');
+        const totalText = item.exemptCount === 4 ? '-' : item.total;
 
         rowsHtml += `
           <tr>
-            <td style="${item.total > 0 ? 'font-weight: 700;' : ''}">${item.seriesName}</td>
+            <td style="${item.total > 0 ? 'font-weight: 700;' : ''}">${item.seriesName}${item.exemptCount > 0 ? ' <span style="color:#8b5cf6; font-size:9px;">(免' + item.exemptCount + '渠道)</span>' : ''}</td>
             <td style="text-align: center;">
               <div class="micro-bar-group" style="margin: 0 auto;">
                 ${renderSlot(item.cTmall, 'tmall')}
@@ -6539,7 +6592,7 @@
                 ${renderSlot(item.cPdd, 'pdd')}
               </div>
             </td>
-            <td style="text-align: center; ${item.total > 0 ? 'font-weight: 700;' : 'color:#94a3b8;'}">${item.total}</td>
+            <td style="text-align: center; ${item.total > 0 ? 'font-weight: 700;' : 'color:#94a3b8;'}">${totalText}</td>
             <td style="text-align: right;">
               <span style="font-weight: 700; color: ${rateColor};">${rateText}</span>
             </td>
