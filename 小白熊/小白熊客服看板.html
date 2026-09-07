@@ -1001,6 +1001,7 @@
             <button class="gdf-capsule active" data-type="yesterday" onclick="applyGlobalWindow('yesterday', this)">昨日</button>
             <button class="gdf-capsule" data-type="7d" onclick="applyGlobalWindow('7d', this)">近7天</button>
             <button class="gdf-capsule" data-type="30d" onclick="applyGlobalWindow('30d', this)">近30天</button>
+            <button class="gdf-capsule" data-type="day" onclick="applyGlobalWindow('day', this)">日</button>
             <button class="gdf-capsule" data-type="week" onclick="applyGlobalWindow('week', this)">周</button>
             <button class="gdf-capsule" data-type="month" onclick="applyGlobalWindow('month', this)">月</button>
             <button class="gdf-capsule" data-type="custom" onclick="applyGlobalWindow('custom', this)">自定义</button>
@@ -1009,6 +1010,10 @@
             <input type="date" id="date-start" class="gdf-date-input" min="2026-08-31" onchange="onCustomDateChange()">
             <span class="gdf-sep">至</span>
             <input type="date" id="date-end" class="gdf-date-input" min="2026-08-31" onchange="onCustomDateChange()">
+          </div>
+          <div class="gdf-custom-row" id="gdf-day-row" style="display: none;">
+            <span class="gdf-sep">选择单日</span>
+            <input type="date" id="date-day" class="gdf-date-input" min="2026-08-31" onchange="onDayDateChange()">
           </div>
           <div class="gdf-footer">
             <span class="gdf-clock" id="gdf-clock">⏱️ --:--:--</span>
@@ -3360,7 +3365,7 @@
         <span>🔒 保密级别: <span class="footer-highlight">小白熊官方高管驾驶舱 · 严禁外传</span></span>
       </div>
       <div class="footer-right">
-        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-07 10:27:05</span></span>
+        <span>⏱️ 系统时间: <span class="footer-highlight">2026-09-07 10:36:38</span></span>
         <span>|</span>
         <span>小白熊运营决策系统</span>
       </div>
@@ -6773,9 +6778,20 @@
     }
 
     function onCustomDateChange(startDate, endDate) {
-      const s = startDate || (document.getElementById('date-start')?.value || '') || '2026-09-01';
       const MIN_DATE = '2026-08-31'; // 数据最早回溯下限(固定)
-      const e = endDate || (document.getElementById('date-end')?.value || '') || '2026-09-01';
+      // 按当前窗口类型取日期：显式传参优先；「日」模式读 date-day，其余读 date-start/date-end
+      let s, e;
+      if (startDate && endDate) {
+        s = startDate; e = endDate;
+      } else if (gdfCurrentType === 'day') {
+        const d = document.getElementById('date-day')?.value || '';
+        s = d; e = d;
+      } else {
+        s = document.getElementById('date-start')?.value || '';
+        e = document.getElementById('date-end')?.value || '';
+      }
+      if (!s) s = '2026-09-01';
+      if (!e) e = '2026-09-01';
       // 数据最早回溯到 2026-08-31（固定下限），越界自动夹紧
       let sClamp = s, eClamp = e;
       if (sClamp && sClamp < MIN_DATE) sClamp = MIN_DATE;
@@ -6784,8 +6800,8 @@
         const si = document.getElementById('date-start'), ei = document.getElementById('date-end');
         if (si && s) si.value = sClamp;
         if (ei && e) ei.value = eClamp;
-        updateRangeLabel(sClamp, eClamp);
       }
+      updateRangeLabel(sClamp, eClamp);
       
       // 遍历计算所选日期区间的「有效工作日天数」（周末周六周日及法定节假日目标条数=0）
       let workdayCount = 0;
@@ -7320,7 +7336,9 @@
       document.querySelectorAll('.gdf-capsule').forEach(b => b.classList.remove('active'));
       if (btn) btn.classList.add('active');
       const customRow = document.getElementById('gdf-custom-row');
+      const dayRow = document.getElementById('gdf-day-row');
       if (customRow) customRow.style.display = (type === 'custom') ? 'flex' : 'none';
+      if (dayRow) dayRow.style.display = (type === 'day') ? 'flex' : 'none';
 
       const T = new Date(); // 时间均以电脑本地日期为锚点
       let s, e;
@@ -7335,6 +7353,16 @@
         const dS = new Date(T); dS.setDate(T.getDate() - 30);
         const dE = new Date(T); dE.setDate(T.getDate() - 1);
         s = formatDate(dS); e = formatDate(dE);
+      } else if (type === 'day') {
+        // 单日：以 date-day 输入为准，为空默认昨日
+        const dayInput = document.getElementById('date-day');
+        let d = dayInput?.value || '';
+        if (!d) {
+          const dd = new Date(T); dd.setDate(T.getDate() - 1);
+          d = formatDate(dd);
+          if (dayInput) dayInput.value = d;
+        }
+        s = e = d;
       } else if (type === 'week') {
         const dY = new Date(T); dY.setDate(T.getDate() - 1);        // 昨日 = 最新数据日
         const dow = dY.getDay() === 0 ? 7 : dY.getDay();            // 以昨日所在周定位周一
@@ -7361,7 +7389,19 @@
       onCustomDateChange(s, e);
     }
 
-    const GDF_TYPE_NAMES = { yesterday: '昨日', '7d': '近7天', '30d': '近30天', week: '周', month: '月', custom: '自定义' };
+    const GDF_TYPE_NAMES = { yesterday: '昨日', '7d': '近7天', '30d': '近30天', day: '日', week: '周', month: '月', custom: '自定义' };
+
+    function onDayDateChange() {
+      gdfCurrentType = 'day';
+      document.querySelectorAll('.gdf-capsule').forEach(b => b.classList.remove('active'));
+      const dayBtn = document.querySelector('.gdf-capsule[data-type="day"]');
+      if (dayBtn) dayBtn.classList.add('active');
+      const dayInput = document.getElementById('date-day');
+      const d = dayInput?.value || '';
+      if (!d) return;
+      updateRangeLabel(d, d);
+      onCustomDateChange(d, d);
+    }
 
     function updateRangeLabel(s, e) {
       const label = document.getElementById('gdf-range-label');
