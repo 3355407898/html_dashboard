@@ -3445,7 +3445,7 @@
         <span>🔒 保密级别: <span class="footer-highlight">小白熊官方高管驾驶舱 · 严禁外传</span></span>
       </div>
       <div class="footer-right">
-        <span>⏱️ 系统时间: <span class="footer-highlight">2026-10-22 10:48:11</span></span>
+        <span>⏱️ 系统时间: <span class="footer-highlight">2026-10-22 10:54:45</span></span>
         <span>|</span>
         <span>小白熊运营决策系统</span>
       </div>
@@ -22956,7 +22956,7 @@ const section3AsOf = "2026-10-22";
 let s3WindowRows = [];
 const s3Escape = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const s3NeedsFollowup = r => String(r.type || '').trim() !== '对话满意';
-const s3Pending = r => s3Status(r) !== 'done';
+const s3Pending = r => s3NeedsFollowup(r) && s3Status(r) !== 'done';
 const s3Age = r => Math.floor((Date.parse(section3AsOf+'T00:00:00+08:00') - Date.parse(r.date+'T00:00:00+08:00')) / 86400000);
 const s3History = () => section3TestRecords.filter(r => r.date <= section3AsOf);
 const s3Status = r => { const state=String(r.state||'').trim(); return state==='已解决'?'done':['处理中','解决中'].includes(state)?'processing':'unresolved'; };
@@ -22984,7 +22984,7 @@ function refreshSection3(records, selectedStart=document.getElementById('date-st
     <div class="s3-kpis">
       <button class="s3-kpi" onclick="s3Show('filled')" title="已填方案 ${filled} / 对应日期记录 ${total} 条；填写不代表已解决"><span>方案填写率</span><b>${rate(filled)}</b></button>
       <button class="s3-kpi" onclick="s3Show('done')" title="已解决 ${done} / 对应日期记录 ${total} 条"><span>已解决率</span><b class="s3-green">${rate(done)}</b></button>
-      <button class="s3-kpi" onclick="s3Show('pending')" title="对应日期解决状态非已解决 ${pending} 条，包含无问题、处理中和空白；点击查看明细"><span>待跟进</span><b class="s3-amber">${pending}<em>条</em></b></button>
+      <button class="s3-kpi" onclick="s3Show('pending')" title="对应日期问题类型非对话满意、解决状态非已解决 ${pending} 条，包含无问题、处理中和空白；点击查看明细"><span>待跟进</span><b class="s3-amber">${pending}<em>条</em></b></button>
     </div>
     <div class="s3-channel-head"><span>渠道 / 检查记录</span><span>已解决率</span><span>待跟进</span></div>
     <div class="s3-channels">${s3Channels.map(([key,name])=>{
@@ -23004,7 +23004,7 @@ function s3Show(kind, value) {
   if(kind==='satisfied'){rows=rows.filter(r=>r.type==='对话满意');title='对话满意记录';}
   if(kind==='filled'){rows=rows.filter(r=>r.scheme.trim());title='处理方案有填写';}
   if(kind==='done'){rows=rows.filter(r=>s3Status(r)==='done');title='已解决记录';}
-  if(kind==='pending'){rows=rows.filter(s3Pending);title='待跟进记录（解决状态非已解决）';}
+  if(kind==='pending'){rows=rows.filter(s3Pending);title='待跟进记录（非对话满意且非已解决）';}
   if(kind==='channel'){rows=rows.filter(r=>r.channel===value);title=s3Channels.find(c=>c[0]===value)[1]+' · 所选时段需处理';}
   if(kind==='history'){rows=s3HistoryGroup(value);title=({'done':'全量已解决','processing':'>3天处理中（含解决中）','unresolved':'>3天未解决（含状态未填）'})[value]+' · 截至'+section3AsOf;}
   if(kind!=='history')title+=' · '+document.getElementById('s3-data-date').textContent;
