@@ -45,30 +45,36 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     }
 
-    html, body {
+    html {
+      min-height: 100%;
+      background-color: var(--bg-canvas);
+      margin: 0;
+      padding: 0;
+      overflow: auto;
+    }
+
+    body {
+      width: 100%;
+      min-width: 1160px;
       min-height: 100vh;
       background-color: var(--bg-canvas);
       margin: 0;
       padding: 0;
-      overflow-x: auto;
-      overflow-y: auto;
-    }
-
-    body {
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: flex-start;
       justify-content: flex-start;
-      min-width: fit-content;
       box-sizing: border-box;
     }
 
     .app-container {
-      width: 1360px;
-      height: 750px;
-      min-width: 1360px;
-      min-height: 750px;
-      margin: 24px auto;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 1160px;
+      min-height: 720px;
+      margin: 0;
+      padding: 12px 16px;
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -327,7 +333,7 @@
     }
 
     .progress-bar-container {
-      width: 85px;
+      width: clamp(80px, 7vw, 150px);
       height: 7px;
       background-color: #e2e8f0;
       border-radius: 3.5px;
@@ -1047,7 +1053,7 @@
 </head>
 <body>
 
-  <!-- 主外层限制容器 (居中呼吸留白) -->
+  <!-- 主外层自适应满屏容器 -->
   <div class="app-container">
 
     <!-- 顶部标题与时间窗口 -->
@@ -3445,7 +3451,7 @@
         <span>🔒 保密级别: <span class="footer-highlight">小白熊官方高管驾驶舱 · 严禁外传</span></span>
       </div>
       <div class="footer-right">
-        <span>⏱️ 系统时间: <span class="footer-highlight">2026-11-13 10:16:52</span></span>
+        <span>⏱️ 系统时间: <span class="footer-highlight">2026-11-13 10:26:54</span></span>
         <span>|</span>
         <span>小白熊运营决策系统</span>
       </div>
